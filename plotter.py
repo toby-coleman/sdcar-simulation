@@ -1,13 +1,11 @@
 from keras.models import model_from_json
 import pandas as pd
-from os import path
-from PIL import Image
-from model import preprocess_image, load_data
+from model import load_data
 
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
-    plot_length = 512
+    plot_length = 1024
     # Load model and weights
     with open('model.json', 'r') as file:
         model = model_from_json(file.read())
