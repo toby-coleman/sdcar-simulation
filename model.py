@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 from keras.models import Sequential
-from keras.layers import Dense, Convolution2D, Flatten
+from keras.layers import Dense, Convolution2D, Flatten, MaxPooling2D
 
 from PIL import Image
 from os import path
@@ -77,9 +77,16 @@ def create_model():
     model = Sequential()
     model.add(Convolution2D(32, 5, 5,
                             border_mode='valid',
+                            activation='relu',
                             input_shape=(IMAGE_SIZE[1], IMAGE_SIZE[0], 3)))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Convolution2D(64, 5, 5,
+                            border_mode='valid',
+                            activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
-    model.add(Dense(128))
+    model.add(Dense(128, activation='relu'))
+    model.add(Dense(64, activation='relu'))
     model.add(Dense(1, activation='linear'))
 
     model.compile('adam', 'mse')
@@ -92,7 +99,11 @@ if __name__ == '__main__':
     gen_train, gen_val, n_train, n_val = train_validate_split('data', 128)
     print('Training epoch size: {0}, Validation epoch size: {1}'.format(n_train, n_val))
 
-    model.fit_generator(gen_train, n_train, 30, validation_data=gen_val, nb_val_samples=n_val)
+    try:
+        model.fit_generator(gen_train, n_train, 30, validation_data=gen_val, nb_val_samples=n_val)
+    except KeyboardInterrupt:
+        # Allow training to be terminated early
+        pass
 
     # Save model architecture
     with open('model.json', 'w') as file:
