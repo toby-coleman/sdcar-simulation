@@ -1,7 +1,12 @@
 # Self-driving car behavioural cloning
 
-Basic boiler-plate code for the model training and driving.
+Additional images from left/right cameras included in training.
 
-Achieves MSE on validation of 0.010 after 5 training epochs.  Model can drive part way round the track, but drives too
-close to the edge of the road and is unable to recover when it gets stuck at the side of the road.
+Lowered learning rate to get model to train properly.
 
+Prediction of previous model against centre camera gives mean steering angle of 0.012
+Against the left camera it gives mean angle of 0.045, right camera -0.033.
+
+Validation loss = 0.0044 after 8 epochs with camera adjustment angle of 0.1.
+
+Drives closer to the centre of the road, but gets stuck on the bridge.
