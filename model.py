@@ -4,6 +4,7 @@ import numpy as np
 from keras.models import Sequential
 from keras.layers import Dense, Convolution2D, Flatten, MaxPooling2D, Dropout
 from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
 from PIL import Image
@@ -11,8 +12,8 @@ from os import path
 from itertools import cycle
 
 
-IMAGE_SIZE = (160, 80)
-ANGLE_OFFSET = 0.1
+IMAGE_SIZE = (80, 40)
+ANGLE_OFFSET = 0.3
 
 
 def preprocess_image(img):
@@ -23,7 +24,9 @@ def preprocess_image(img):
     """
     # Resize image
     resized = img.resize(IMAGE_SIZE)
-    data = np.asarray(resized)[None, :, :, :]
+    # Convert to HSV, keeping just H and S
+    hsv = resized.convert(mode='HSV')
+    data = np.asarray(hsv)[None, :, :, :2]
     # Normalise into range [-0.5, +0.5]
     data = data / 255. - 0.5
     return data
@@ -82,9 +85,9 @@ def train_validate_split(data_folder, batch_size, val_fraction=0.2, camera_offse
     train = round_robin(load_data(data_folder, df_train, batch_size, camera='center', offset=0.0),
                         load_data(data_folder, df_train, batch_size, camera='left', offset=+camera_offset),
                         load_data(data_folder, df_train, batch_size, camera='right', offset=-camera_offset))
-    val = round_robin(load_data(data_folder, df_train, batch_size, camera='center', offset=0.0),
-                      load_data(data_folder, df_train, batch_size, camera='left', offset=+camera_offset),
-                      load_data(data_folder, df_train, batch_size, camera='right', offset=-camera_offset))
+    val = round_robin(load_data(data_folder, df_val, batch_size, camera='center', offset=0.0),
+                      load_data(data_folder, df_val, batch_size, camera='left', offset=+camera_offset),
+                      load_data(data_folder, df_val, batch_size, camera='right', offset=-camera_offset))
     n_train *= 3  # x3 for each camera angle
     n_val *= 3
 
@@ -96,8 +99,9 @@ def create_model():
     model.add(Convolution2D(32, 5, 5,
                             border_mode='valid',
                             activation='relu',
-                            input_shape=(IMAGE_SIZE[1], IMAGE_SIZE[0], 3)))
+                            input_shape=(IMAGE_SIZE[1], IMAGE_SIZE[0], 2)))
     model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.25))
     model.add(Convolution2D(64, 5, 5,
                             border_mode='valid',
                             activation='relu'))
@@ -118,7 +122,9 @@ if __name__ == '__main__':
     print('Training epoch size: {0}, Validation epoch size: {1}'.format(n_train, n_val))
 
     try:
-        model.fit_generator(gen_train, n_train, 30, validation_data=gen_val, nb_val_samples=n_val)
+        model.fit_generator(gen_train, n_train, 30,
+                            validation_data=gen_val, nb_val_samples=n_val,
+                            callbacks=[ModelCheckpoint('model.h5', save_weights_only=True)])
     except KeyboardInterrupt:
         # Allow training to be terminated early
         pass
@@ -126,8 +132,6 @@ if __name__ == '__main__':
     # Save model architecture
     with open('model.json', 'w') as file:
         file.write(model.to_json())
-    # Save model weights
-    model.save_weights('model.h5')
 
     # Clear TF session, see https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()
