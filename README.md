@@ -1,3 +1,3 @@
 # Self-driving car behavioural cloning
 
-With HSV transform and reduced image size.
+0.0092 loss on validation after 10 epochs.  Working on track 1.
