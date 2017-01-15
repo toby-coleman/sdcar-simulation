@@ -20,6 +20,7 @@ def preprocess_image(img, flip=False):
     """
     Carry out pre-processing on input images
     :param img:
+    :param flip: optionally take the mirror image
     :return: normalised and re-sized image data as numpy array
     """
     # Resize image
@@ -47,6 +48,8 @@ def load_data(data_folder, df, batch_size, camera='center', offset=0.0):
     :param data_folder: folder containing driving_log.csv and the training images
     :param df: driving log dataframe
     :param batch_size: generate batches of this size
+    :param camera: either 'left', 'right' or 'center'
+    :param offset: offset to the steering angle (apply this when using left or right cameras)
     :return: tuple of (X, y) where X is image data, y is steering angle
     """
     start_row = 0
@@ -59,20 +62,18 @@ def load_data(data_folder, df, batch_size, camera='center', offset=0.0):
         # Otherwise take a batch from the dataframe
         batch_df = df.iloc[start_row:start_row + batch_size,:]
         start_row += batch_size
-        # Decide whether to flip this batch
-        flip = False
         # Load and pre-process each of the images in the batch
         images = [Image.open(path.join(data_folder, f.strip())) for f in batch_df[camera]]
-        images = [preprocess_image(img, flip) for img in images]
+        images = [preprocess_image(img) for img in images]
         # Concantenate all images into one array
         X = np.concatenate(images)
         # Load steering angles
-        y = batch_df.steering.values + offset*(-1 if flip else +1)
+        y = batch_df.steering.values + offset
         yield (X, y)
 
 def train_validate_split(data_folder, batch_size, val_fraction=0.2, camera_offset=ANGLE_OFFSET):
     """
-
+    Load images, pre-process and prepare generators for training and validation sets
     :param data_folder: folder containing driving_log.csv and the training images
     :param batch_size: size of each training/validation batch
     :return: (training_generator, validation_generator, n_train, n_validation)
@@ -100,6 +101,10 @@ def train_validate_split(data_folder, batch_size, val_fraction=0.2, camera_offse
 
 
 def create_model():
+    """
+    Model definition
+    :return: Keras model
+    """
     model = Sequential()
     model.add(Convolution2D(16, 5, 5,
                             border_mode='valid',
@@ -136,7 +141,7 @@ if __name__ == '__main__':
         file.write(model.to_json())
 
     try:
-        model.fit_generator(gen_train, n_train, 10,
+        model.fit_generator(gen_train, n_train, 20,
                             validation_data=gen_val, nb_val_samples=n_val,
                             callbacks=[ModelCheckpoint('model.h5', save_weights_only=True)])
     except KeyboardInterrupt:
